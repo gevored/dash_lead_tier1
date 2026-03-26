@@ -307,23 +307,33 @@ function ExportButton() {
   const [dateTo, setDateTo] = useState('')
   const [loading, setLoading] = useState(false)
 
+  const hashEmail = async (email) => {
+    if (!email) return ''
+    const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(email.toLowerCase().trim()))
+    return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('')
+  }
+
   const handleExport = async () => {
     if (!dateFrom || !dateTo) return
     setLoading(true)
     const { data, error } = await supabase
       .from('leads_t1_raw')
-      .select('*')
+      .select('created_at, bu, dt, pmp, n8n_execution_id, sf_exists, sf_status, email')
       .gte('created_at', `${dateFrom}T00:00:00`)
       .lte('created_at', `${dateTo}T23:59:59`)
       .order('created_at', { ascending: false })
 
     if (error || !data?.length) { setLoading(false); alert(error ? 'Erro ao buscar dados.' : 'Nenhum lead encontrado.'); return }
 
-    const cols = ['id','created_at','bu','dt','pmp','email','telefone','renda','patrimonio','sf_exists','sf_lead_id','sf_status','sf_owner_name','n8n_execution_id']
-    const rows = data.map(r => cols.map(c => {
-      const v = r[c] ?? ''
-      return typeof v === 'string' && v.includes(',') ? `"${v}"` : v
-    }).join(','))
+    const cols = ['created_at', 'bu', 'dt', 'pmp', 'n8n_execution_id', 'sf_exists', 'sf_status', 'email_hash']
+    const rows = await Promise.all(data.map(async r => {
+      const emailHash = await hashEmail(r.email)
+      const record = { ...r, email_hash: emailHash }
+      return cols.map(c => {
+        const v = record[c] ?? ''
+        return typeof v === 'string' && v.includes(',') ? `"${v}"` : v
+      }).join(',')
+    }))
     const csv = [cols.join(','), ...rows].join('\n')
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
     const url = URL.createObjectURL(blob)
