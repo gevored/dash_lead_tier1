@@ -1,135 +1,185 @@
 import React, { useState, useEffect, useRef } from 'react'
+import { createClient } from '@supabase/supabase-js'
 import './App.css'
 
-const AnimatedCell = ({ value }) => {
-  const prevValueRef = useRef(value);
-  const [flashClass, setFlashClass] = useState('');
+const supabase = createClient(
+  import.meta.env.VITE_SUPABASE_URL,
+  import.meta.env.VITE_SUPABASE_ANON_KEY
+)
 
-  useEffect(() => {
-    if (value !== prevValueRef.current && prevValueRef.current !== undefined) {
-      if (value > prevValueRef.current) setFlashClass('flash-green');
-      else if (value < prevValueRef.current) setFlashClass('flash-red');
-      
-      const timer = setTimeout(() => setFlashClass(''), 1200);
-      prevValueRef.current = value;
-      return () => clearTimeout(timer);
-    } else {
-      prevValueRef.current = value;
+const RANGES = ['100k-300k', '300k-500k', '500k-1MM', '1MM-5MM', '5MM+']
+
+function parsePatrimonioRange(text) {
+  if (!text) return null
+  const nums = []
+  const matches = text.match(/[\d.]+/g)
+  if (matches) {
+    matches.forEach(m => {
+      const n = parseFloat(m.replace(/\./g, ''))
+      if (!isNaN(n)) nums.push(n)
+    })
+  }
+  const isAcima = text.toLowerCase().includes('acima')
+  const ref = isAcima ? nums[0] : (nums.length > 0 ? Math.min(...nums) : null)
+  if (ref === null) return null
+  if (ref >= 5000000) return '5MM+'
+  if (ref >= 1000000) return '1MM-5MM'
+  if (ref >= 500000) return '500k-1MM'
+  if (ref >= 300000) return '300k-500k'
+  if (ref >= 100000) return '100k-300k'
+  return null
+}
+
+function buildHierarchy(leads) {
+  const buMap = {}
+  for (const lead of leads) {
+    const bu = lead.bu || 'Sem BU'
+    const dt = lead.dt || 'Sem Canal'
+    const pmp = lead.pmp || 'Sem PMP'
+    const isReentrada = lead.sf_exists === true
+    const range = parsePatrimonioRange(lead.patrimonio)
+
+    if (!buMap[bu]) buMap[bu] = { totais: 0, reentrada: 0, ranges: {}, dts: {} }
+    if (!buMap[bu].dts[dt]) buMap[bu].dts[dt] = { totais: 0, reentrada: 0, ranges: {}, pmps: {} }
+    if (!buMap[bu].dts[dt].pmps[pmp]) buMap[bu].dts[dt].pmps[pmp] = { totais: 0, reentrada: 0, ranges: {} }
+
+    buMap[bu].totais++
+    buMap[bu].dts[dt].totais++
+    buMap[bu].dts[dt].pmps[pmp].totais++
+
+    if (isReentrada) {
+      buMap[bu].reentrada++
+      buMap[bu].dts[dt].reentrada++
+      buMap[bu].dts[dt].pmps[pmp].reentrada++
     }
-  }, [value]);
+    if (range) {
+      buMap[bu].ranges[range] = (buMap[bu].ranges[range] || 0) + 1
+      buMap[bu].dts[dt].ranges[range] = (buMap[bu].dts[dt].ranges[range] || 0) + 1
+      buMap[bu].dts[dt].pmps[pmp].ranges[range] = (buMap[bu].dts[dt].pmps[pmp].ranges[range] || 0) + 1
+    }
+  }
+  return buMap
+}
 
-  return <span className={`animated-cell ${flashClass}`}>{value}</span>;
-};
-
-function App() {
-  const [dataGroups, setDataGroups] = useState([]);
-  const [latestLeads, setLatestLeads] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [isRunning, setIsRunning] = useState(false);
-
-  const apiBaseUrl = (import.meta.env.VITE_API_URL || 'http://localhost:3000').replace(/\/$/, "");
-
-  const fetchData = () => {
-    fetch(`${apiBaseUrl}/api/leads/summary`)
-      .then((response) => response.json())
-      .then((data) => {
-        setDataGroups(data);
-        setLoading(false);
-      })
-      .catch((error) => console.error('Error fetching summary:', error));
-  };
-
-  const fetchLatest = () => {
-    fetch(`${apiBaseUrl}/api/leads/latest`)
-      .then((response) => response.json())
-      .then((data) => setLatestLeads(data))
-      .catch((error) => console.error('Error fetching latest:', error));
-  };
-
-  const fetchStatus = () => {
-    fetch(`${apiBaseUrl}/api/simulation/status`)
-      .then(res => res.json())
-      .then(data => setIsRunning(data.isRunning))
-      .catch(err => console.error('Error status:', err));
-  };
-
-  const toggleSimulation = () => {
-    fetch(`${apiBaseUrl}/api/simulation/toggle`, { method: 'POST' })
-      .then(res => res.json())
-      .then(data => setIsRunning(data.isRunning))
-      .catch(err => console.error(err));
-  };
+const AnimatedCell = ({ value }) => {
+  const prevRef = useRef(value)
+  const [flashClass, setFlashClass] = useState('')
 
   useEffect(() => {
-    fetchData();
-    fetchLatest();
-    fetchStatus();
-    const interval = setInterval(() => {
-      fetchData();
-      fetchLatest();
-      fetchStatus();
-    }, 5000);
-    return () => clearInterval(interval);
-  }, []);
+    if (value !== prevRef.current && prevRef.current !== undefined) {
+      setFlashClass(value > prevRef.current ? 'flash-green' : 'flash-red')
+      const t = setTimeout(() => setFlashClass(''), 1200)
+      prevRef.current = value
+      return () => clearTimeout(t)
+    } else {
+      prevRef.current = value
+    }
+  }, [value])
 
-  // Filter only whales (leads that have MM in the string)
-  const whaleLeads = latestLeads.filter(lead => lead.patrimonio.includes('MM'));
+  return <span className={`animated-cell ${flashClass}`}>{value ?? 0}</span>
+}
+
+export default function App() {
+  const [leads, setLeads] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [expandedBUs, setExpandedBUs] = useState({})
+  const [expandedDTs, setExpandedDTs] = useState({})
+
+  useEffect(() => {
+    supabase
+      .from('leads_t1_raw')
+      .select('bu, dt, pmp, patrimonio, sf_exists, payload, created_at')
+      .then(({ data, error }) => {
+        if (error) console.error(error)
+        else setLeads(data || [])
+        setLoading(false)
+      })
+
+    const channel = supabase
+      .channel('leads_realtime')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'leads_t1_raw' }, ({ new: row }) => {
+        setLeads(prev => [...prev, row])
+      })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'leads_t1_raw' }, ({ new: row }) => {
+        setLeads(prev => prev.map(l => l.id === row.id ? { ...l, ...row } : l))
+      })
+      .subscribe()
+
+    return () => supabase.removeChannel(channel)
+  }, [])
+
+  const hierarchy = buildHierarchy(leads)
+  const toggleBU = bu => setExpandedBUs(p => ({ ...p, [bu]: !p[bu] }))
+  const toggleDT = key => setExpandedDTs(p => ({ ...p, [key]: !p[key] }))
+
+  const whaleLeads = leads
+    .filter(l => { const r = parsePatrimonioRange(l.patrimonio); return r === '1MM-5MM' || r === '5MM+' })
+    .slice(-10)
+
+  const colSpan = 4 + RANGES.length
 
   return (
     <div className="dashboard-container">
       <header className="dashboard-header">
         <div className="header-title-row">
-          <h1>Simulador de Funil</h1>
-          <div className="controls">
-            <button className={`toggle-btn ${isRunning ? 'btn-stop' : 'btn-start'}`} onClick={toggleSimulation}>
-              {isRunning ? 'Pausar Simulação' : 'Iniciar Simulação'}
-            </button>
-            {isRunning ? (
-              <span className="live-indicator"><span className="pulse"></span> AO VIVO</span>
-            ) : (
-              <span className="paused-indicator">PAUSADO</span>
-            )}
-          </div>
+          <h1>Dashboard Leads T1</h1>
+          <span className="live-indicator"><span className="pulse"></span> AO VIVO</span>
         </div>
-        <p>Visão agregada de leads por Leadsource e PMP</p>
+        <p>Visão em tempo real — BU → Canal → PMP</p>
       </header>
 
       <main className="dashboard-content">
-        {loading ? (
-          <p>Carregando dados...</p>
-        ) : (
+        {loading ? <p>Carregando dados...</p> : (
           <div className="table-container">
             <table className="summary-table">
               <thead>
                 <tr>
-                  <th>Leadsource</th>
-                  <th className="text-right">Total</th>
-                  <th className="text-right">Já existiam</th>
-                  <th className="text-right">Varejo</th>
-                  <th className="text-right">Elegíveis Portfel</th>
-                  <th className="text-right">Elegíveis G</th>
+                  <th>BU / Canal / PMP</th>
+                  <th className="text-right">Totais</th>
+                  <th className="text-right">Reentrada</th>
+                  <th className="text-right">Elegível</th>
+                  {RANGES.map(r => <th key={r} className="text-right">{r}</th>)}
                 </tr>
               </thead>
               <tbody>
-                {dataGroups.map((group, groupIndex) => (
-                  <React.Fragment key={groupIndex}>
-                    <tr className="group-header">
-                      <td colSpan="6"><strong>{group.leadsource}</strong></td>
+                {Object.entries(hierarchy).map(([bu, buData]) => (
+                  <React.Fragment key={bu}>
+                    <tr className="row-bu" onClick={() => toggleBU(bu)}>
+                      <td><strong>{expandedBUs[bu] ? '▾' : '▸'} {bu}</strong></td>
+                      <td className="text-right"><AnimatedCell value={buData.totais} /></td>
+                      <td className="text-right reentrada"><AnimatedCell value={-buData.reentrada} /></td>
+                      <td className="text-right"><AnimatedCell value={buData.totais - buData.reentrada} /></td>
+                      {RANGES.map(r => <td key={r} className="text-right"><AnimatedCell value={buData.ranges[r] ?? 0} /></td>)}
                     </tr>
-                    {group.items.map((item, itemIndex) => (
-                      <tr key={`${groupIndex}-${itemIndex}`}>
-                        <td className="indent">{item.name}</td>
-                        <td className="text-right"><AnimatedCell value={item.total} /></td>
-                        <td className="text-right"><AnimatedCell value={item.ja_existiam} /></td>
-                        <td className="text-right"><AnimatedCell value={item.varejo} /></td>
-                        <td className="text-right"><AnimatedCell value={item.elegiveis_portfel ?? 0} /></td>
-                        <td className="text-right"><AnimatedCell value={item.elegiveis_g ?? 0} /></td>
-                      </tr>
-                    ))}
+
+                    {expandedBUs[bu] && Object.entries(buData.dts).map(([dt, dtData]) => {
+                      const dtKey = `${bu}|${dt}`
+                      return (
+                        <React.Fragment key={dtKey}>
+                          <tr className="row-dt" onClick={() => toggleDT(dtKey)}>
+                            <td className="indent-1">{expandedDTs[dtKey] ? '▾' : '▸'} {dt}</td>
+                            <td className="text-right"><AnimatedCell value={dtData.totais} /></td>
+                            <td className="text-right reentrada"><AnimatedCell value={-dtData.reentrada} /></td>
+                            <td className="text-right"><AnimatedCell value={dtData.totais - dtData.reentrada} /></td>
+                            {RANGES.map(r => <td key={r} className="text-right"><AnimatedCell value={dtData.ranges[r] ?? 0} /></td>)}
+                          </tr>
+
+                          {expandedDTs[dtKey] && Object.entries(dtData.pmps).map(([pmp, pmpData]) => (
+                            <tr key={`${dtKey}|${pmp}`} className="row-pmp">
+                              <td className="indent-2">{pmp}</td>
+                              <td className="text-right"><AnimatedCell value={pmpData.totais} /></td>
+                              <td className="text-right reentrada"><AnimatedCell value={-pmpData.reentrada} /></td>
+                              <td className="text-right"><AnimatedCell value={pmpData.totais - pmpData.reentrada} /></td>
+                              {RANGES.map(r => <td key={r} className="text-right"><AnimatedCell value={pmpData.ranges[r] ?? 0} /></td>)}
+                            </tr>
+                          ))}
+                        </React.Fragment>
+                      )
+                    })}
                   </React.Fragment>
                 ))}
-                {dataGroups.length === 0 && (
-                  <tr><td colSpan="6">Nenhum dado encontrado.</td></tr>
+                {Object.keys(hierarchy).length === 0 && (
+                  <tr><td colSpan={colSpan}>Nenhum dado encontrado.</td></tr>
                 )}
               </tbody>
             </table>
@@ -137,20 +187,13 @@ function App() {
         )}
       </main>
 
-      {/* CNN Ticker Bar Fixed at the bottom */}
       {whaleLeads.length > 0 && (
         <div className="news-ticker-wrapper">
           <div className="news-ticker-label">BREAKING NEWS</div>
           <div className="news-ticker-content">
-            {whaleLeads.map((lead, idx) => (
-              <span key={`${lead.nome}-${idx}`} className="ticker-item">
-                🚨 Urgente: Lead <strong>{lead.nome}</strong> acaba de despontar com patrimônio declarado acima de <span>{lead.patrimonio}</span> pelo canal {lead.leadsource} / {lead.pmp}
-              </span>
-            ))}
-            {/* Duplicated for smooth endless scrolling effect in case there's only 1 whale */}
-            {whaleLeads.map((lead, idx) => (
-              <span key={`dup-${lead.nome}-${idx}`} className="ticker-item">
-                🚨 Urgente: Lead <strong>{lead.nome}</strong> acaba de despontar com patrimônio declarado acima de <span>{lead.patrimonio}</span> pelo canal {lead.leadsource} / {lead.pmp}
+            {[...whaleLeads, ...whaleLeads].map((lead, idx) => (
+              <span key={idx} className="ticker-item">
+                🚨 Lead <strong>{lead.payload?.nome}</strong> com patrimônio <span>{lead.patrimonio}</span> via {lead.bu} / {lead.dt}
               </span>
             ))}
           </div>
@@ -159,4 +202,3 @@ function App() {
     </div>
   )
 }
-export default App

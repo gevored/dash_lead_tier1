@@ -78,7 +78,38 @@
 
 .summary-table .indent {
   padding-left: 2rem;
-  color: var(--text-muted); /* Distinct row items vs header */
+  color: var(--text-muted);
+}
+
+/* Hierarquia BU → DT → PMP */
+.row-bu {
+  cursor: pointer;
+  background-color: var(--bg-card);
+}
+.row-bu:hover { background-color: rgba(255,255,255,0.04); }
+.row-bu td { padding-top: 1.25rem; padding-bottom: 0.75rem; border-top: 1px solid var(--border-color); }
+
+.row-dt {
+  cursor: pointer;
+}
+.row-dt:hover { background-color: rgba(255,255,255,0.03); }
+
+.row-pmp:hover { background-color: rgba(255,255,255,0.02); }
+
+.indent-1 {
+  padding-left: 2rem;
+  color: var(--text-muted);
+  font-size: 0.875rem;
+}
+
+.indent-2 {
+  padding-left: 3.5rem;
+  color: var(--text-muted);
+  font-size: 0.825rem;
+}
+
+.reentrada {
+  color: var(--danger);
 }
 
 .text-right {
