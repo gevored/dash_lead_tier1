@@ -366,6 +366,8 @@ export default function App() {
   const [modal, setModal] = useState(null)
   const [chartGroupBy, setChartGroupBy] = useState('bu')
   const [selectedBU, setSelectedBU] = useState(null)
+  const [showTicker, setShowTicker] = useState(false)
+  const tickerTimerRef = useRef(null)
 
   useEffect(() => {
     supabase.from('leads_t1_raw')
@@ -376,10 +378,18 @@ export default function App() {
         setLoading(false)
       })
     const channel = supabase.channel('leads_realtime')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'leads_t1_raw' }, ({ new: row }) => setLeads(prev => [...prev, row]))
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'leads_t1_raw' }, ({ new: row }) => {
+        setLeads(prev => [...prev, row])
+        const range = parsePatrimonioRange(row.patrimonio)
+        if (range === '1MM-5MM' || range === '5MM+') {
+          setShowTicker(true)
+          if (tickerTimerRef.current) clearTimeout(tickerTimerRef.current)
+          tickerTimerRef.current = setTimeout(() => setShowTicker(false), 5 * 60 * 1000)
+        }
+      })
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'leads_t1_raw' }, ({ new: row }) => setLeads(prev => prev.map(l => l.id === row.id ? { ...l, ...row } : l)))
       .subscribe()
-    return () => supabase.removeChannel(channel)
+    return () => { supabase.removeChannel(channel); if (tickerTimerRef.current) clearTimeout(tickerTimerRef.current) }
   }, [])
 
   const hierarchy = buildHierarchy(leads)
@@ -394,6 +404,7 @@ export default function App() {
   }
 
   const whaleLeads = leads.filter(l => { const r = parsePatrimonioRange(l.patrimonio); return r === '1MM-5MM' || r === '5MM+' }).slice(-10)
+
   const colSpan = 4 + RANGES.length
 
   return (
@@ -496,7 +507,7 @@ export default function App() {
 
       {modal && <StatusModal title={modal.title} leads={modal.leads} onClose={() => setModal(null)} />}
 
-      {whaleLeads.length > 0 && (
+      {showTicker && whaleLeads.length > 0 && (
         <div className="news-ticker-wrapper">
           <div className="news-ticker-label">BREAKING NEWS</div>
           <div className="news-ticker-content">
