@@ -87,19 +87,37 @@
   background-color: var(--bg-card);
 }
 .row-bu:hover { background-color: rgba(255,255,255,0.04); }
-.row-bu td { padding-top: 1.25rem; padding-bottom: 0.75rem; border-top: 1px solid var(--border-color); }
+.row-bu td { padding-top: 1.25rem; padding-bottom: 0.75rem; border-top: 2px solid var(--border-color); }
+.row-bu td:first-child { font-size: 0.95rem; }
 
 .row-dt {
   cursor: pointer;
+  background-color: rgba(255,255,255,0.02);
 }
-.row-dt:hover { background-color: rgba(255,255,255,0.03); }
+.row-dt:hover { background-color: rgba(255,255,255,0.04); }
+.row-dt td { border-bottom: 1px dashed rgba(255,255,255,0.06); }
 
+.row-pmp { }
 .row-pmp:hover { background-color: rgba(255,255,255,0.02); }
+.row-pmp td { border-bottom: 1px solid rgba(255,255,255,0.04); color: var(--text-muted); }
 
 .indent-1 {
   padding-left: 2rem;
-  color: var(--text-muted);
   font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--text-main);
+}
+
+.indent-1::before {
+  content: '';
+  display: inline-block;
+  width: 3px;
+  height: 12px;
+  background: var(--success);
+  border-radius: 2px;
+  margin-right: 8px;
+  vertical-align: middle;
+  opacity: 0.6;
 }
 
 .indent-2 {

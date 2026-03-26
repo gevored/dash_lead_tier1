@@ -33,9 +33,9 @@ function parsePatrimonioRange(text) {
 function buildHierarchy(leads) {
   const buMap = {}
   for (const lead of leads) {
-    const bu = lead.bu || 'Sem BU'
-    const dt = lead.dt || 'Sem Canal'
-    const pmp = lead.pmp || 'Sem PMP'
+    const bu = (lead.bu || 'Sem BU').replace(/\+/g, ' ')
+    const dt = (lead.dt || 'Sem Canal').replace(/\+/g, ' ')
+    const pmp = (lead.pmp || 'Sem PMP').replace(/\+/g, ' ')
     const isReentrada = lead.sf_exists === true
     const range = parsePatrimonioRange(lead.patrimonio)
 
