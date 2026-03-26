@@ -228,6 +228,12 @@
   padding: 1.25rem;
 }
 
+.pie-wrapper {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 0.5rem;
+}
+
 .modal-table {
   width: 100%;
   border-collapse: collapse;

@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { createClient } from '@supabase/supabase-js'
-import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import './App.css'
 
 const supabase = createClient(
@@ -82,13 +81,53 @@ const AnimatedCell = ({ value }) => {
 
 const COLORS = ['#3ecf8e','#f24822','#f5a623','#7c5cfc','#17c3b2','#e94f37','#52b788','#4895ef']
 
+function PieChartSVG({ data }) {
+  const total = data.reduce((s, d) => s + d.value, 0)
+  const cx = 110, cy = 110, r = 90
+  let angle = -Math.PI / 2
+  const slices = data.map((d, i) => {
+    const sweep = (d.value / total) * 2 * Math.PI
+    const x1 = cx + r * Math.cos(angle)
+    const y1 = cy + r * Math.sin(angle)
+    angle += sweep
+    const x2 = cx + r * Math.cos(angle)
+    const y2 = cy + r * Math.sin(angle)
+    const large = sweep > Math.PI ? 1 : 0
+    const midAngle = angle - sweep / 2
+    const lx = cx + (r * 0.65) * Math.cos(midAngle)
+    const ly = cy + (r * 0.65) * Math.sin(midAngle)
+    const pct = Math.round((d.value / total) * 100)
+    return { ...d, x1, y1, x2, y2, large, lx, ly, pct, color: COLORS[i % COLORS.length] }
+  })
+
+  return (
+    <svg width="220" height="220" viewBox="0 0 220 220">
+      {slices.map((s, i) => (
+        <g key={i}>
+          <path
+            d={`M${cx},${cy} L${s.x1},${s.y1} A${r},${r} 0 ${s.large},1 ${s.x2},${s.y2} Z`}
+            fill={s.color} stroke="var(--bg-card)" strokeWidth="2"
+          />
+          {s.pct >= 5 && (
+            <text x={s.lx} y={s.ly} textAnchor="middle" dominantBaseline="middle" fontSize="11" fill="#fff" fontWeight="600">
+              {s.pct}%
+            </text>
+          )}
+        </g>
+      ))}
+    </svg>
+  )
+}
+
 function StatusModal({ title, leads, onClose }) {
   const statusMap = {}
   for (const lead of leads) {
     const s = lead.sf_status || 'Sem status'
     statusMap[s] = (statusMap[s] || 0) + 1
   }
-  const data = Object.entries(statusMap).map(([name, value]) => ({ name, value }))
+  const data = Object.entries(statusMap)
+    .map(([name, value]) => ({ name, value }))
+    .sort((a, b) => b.value - a.value)
 
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -98,19 +137,13 @@ function StatusModal({ title, leads, onClose }) {
           <button className="modal-close" onClick={onClose}>✕</button>
         </div>
         <div className="modal-body">
-          <ResponsiveContainer width="100%" height={280}>
-            <PieChart>
-              <Pie data={data} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={100} label={({ name, percent }) => `${(percent * 100).toFixed(0)}%`}>
-                {data.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
-              </Pie>
-              <Tooltip formatter={(value, name) => [value, name]} />
-              <Legend />
-            </PieChart>
-          </ResponsiveContainer>
+          <div className="pie-wrapper">
+            <PieChartSVG data={data} />
+          </div>
           <table className="modal-table">
             <thead><tr><th>Status</th><th className="text-right">Qtd</th></tr></thead>
             <tbody>
-              {data.sort((a,b) => b.value - a.value).map((row, i) => (
+              {data.map((row, i) => (
                 <tr key={i}>
                   <td><span className="status-dot" style={{ background: COLORS[i % COLORS.length] }} />{row.name}</td>
                   <td className="text-right">{row.value}</td>
