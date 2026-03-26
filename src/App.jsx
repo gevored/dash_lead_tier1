@@ -130,22 +130,29 @@ export default function App() {
 
       <main className="dashboard-content">
         {loading ? <p>Carregando dados...</p> : (
-          <div className="table-container">
-            <table className="summary-table">
-              <thead>
-                <tr>
-                  <th>BU / Canal / PMP</th>
-                  <th className="text-right">Totais</th>
-                  <th className="text-right">Reentrada</th>
-                  <th className="text-right">Elegível</th>
-                  {RANGES.map(r => <th key={r} className="text-right">{r}</th>)}
-                </tr>
-              </thead>
-              <tbody>
-                {Object.entries(hierarchy).map(([bu, buData]) => (
-                  <React.Fragment key={bu}>
-                    <tr className="row-bu" onClick={() => toggleBU(bu)}>
-                      <td><strong>{expandedBUs[bu] ? '▾' : '▸'} {bu}</strong></td>
+          <div className="bu-blocks">
+            {Object.keys(hierarchy).length === 0 && <p>Nenhum dado encontrado.</p>}
+            {Object.entries(hierarchy).map(([bu, buData]) => (
+              <div key={bu} className="bu-block">
+                <table className="summary-table">
+                  <thead>
+                    <tr>
+                      <th colSpan={colSpan} className="bu-header" onClick={() => toggleBU(bu)}>
+                        {expandedBUs[bu] ? '▾' : '▸'} {bu}
+                        <span className="bu-total">{buData.totais} leads</span>
+                      </th>
+                    </tr>
+                    <tr>
+                      <th>Canal / PMP</th>
+                      <th className="text-right">Totais</th>
+                      <th className="text-right">Reentrada</th>
+                      <th className="text-right">Elegível</th>
+                      {RANGES.map(r => <th key={r} className="text-right">{r}</th>)}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr className="row-bu-summary">
+                      <td><em>Total</em></td>
                       <td className="text-right"><AnimatedCell value={buData.totais} /></td>
                       <td className="text-right reentrada"><AnimatedCell value={-buData.reentrada} /></td>
                       <td className="text-right"><AnimatedCell value={buData.totais - buData.reentrada} /></td>
@@ -176,13 +183,10 @@ export default function App() {
                         </React.Fragment>
                       )
                     })}
-                  </React.Fragment>
-                ))}
-                {Object.keys(hierarchy).length === 0 && (
-                  <tr><td colSpan={colSpan}>Nenhum dado encontrado.</td></tr>
-                )}
-              </tbody>
-            </table>
+                  </tbody>
+                </table>
+              </div>
+            ))}
           </div>
         )}
       </main>
