@@ -367,6 +367,7 @@ export default function App() {
   const [chartGroupBy, setChartGroupBy] = useState('bu')
   const [selectedBU, setSelectedBU] = useState(null)
   const [showTicker, setShowTicker] = useState(true)
+  const [, setTick] = useState(0)
   const tickerTimerRef = useRef(null)
 
   const resetTickerTimer = () => {
@@ -395,7 +396,8 @@ export default function App() {
       })
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'leads_t1_raw' }, ({ new: row }) => setLeads(prev => prev.map(l => l.id === row.id ? { ...l, ...row } : l)))
       .subscribe()
-    return () => { supabase.removeChannel(channel); if (tickerTimerRef.current) clearTimeout(tickerTimerRef.current) }
+    const clockInterval = setInterval(() => setTick(t => t + 1), 60000)
+    return () => { supabase.removeChannel(channel); if (tickerTimerRef.current) clearTimeout(tickerTimerRef.current); clearInterval(clockInterval) }
   }, [])
 
   const hierarchy = buildHierarchy(leads)
