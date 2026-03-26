@@ -440,7 +440,7 @@ export default function App() {
     <div className="dashboard-container">
       <header className="dashboard-header">
         <div className="header-title-row">
-          <h1>Dashboard Leads T1</h1>
+          <h1>Dashboard Leads T1 Portfel</h1>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
             <ExportButton />
             <span className="live-indicator"><span className="pulse"></span> AO VIVO</span>
