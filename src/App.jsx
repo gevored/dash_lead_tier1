@@ -225,6 +225,16 @@ function SummaryCards({ leads, selectedBU, onSelectBU }) {
 function PieChartSVG({ data }) {
   const total = data.reduce((s, d) => s + d.value, 0)
   const cx = 110, cy = 110, r = 90
+
+  if (data.length === 1) {
+    return (
+      <svg width="220" height="220" viewBox="0 0 220 220">
+        <circle cx={cx} cy={cy} r={r} fill={COLORS[0]} />
+        <text x={cx} y={cy} textAnchor="middle" dominantBaseline="middle" fontSize="14" fill="#fff" fontWeight="600">100%</text>
+      </svg>
+    )
+  }
+
   let angle = -Math.PI / 2
   const slices = data.map((d, i) => {
     const sweep = (d.value / total) * 2 * Math.PI
