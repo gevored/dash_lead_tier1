@@ -372,7 +372,7 @@ export default function App() {
   const resetTickerTimer = () => {
     setShowTicker(true)
     if (tickerTimerRef.current) clearTimeout(tickerTimerRef.current)
-    tickerTimerRef.current = setTimeout(() => setShowTicker(false), 5 * 60 * 1000)
+    tickerTimerRef.current = setTimeout(() => setShowTicker(false), 60 * 1000)
   }
 
   useEffect(() => {
