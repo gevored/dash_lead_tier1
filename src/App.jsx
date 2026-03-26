@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { createClient } from '@supabase/supabase-js'
+import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import './App.css'
 
 const supabase = createClient(
@@ -79,16 +80,61 @@ const AnimatedCell = ({ value }) => {
   return <span className={`animated-cell ${flashClass}`}>{value ?? 0}</span>
 }
 
+const COLORS = ['#3ecf8e','#f24822','#f5a623','#7c5cfc','#17c3b2','#e94f37','#52b788','#4895ef']
+
+function StatusModal({ title, leads, onClose }) {
+  const statusMap = {}
+  for (const lead of leads) {
+    const s = lead.sf_status || 'Sem status'
+    statusMap[s] = (statusMap[s] || 0) + 1
+  }
+  const data = Object.entries(statusMap).map(([name, value]) => ({ name, value }))
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-box" onClick={e => e.stopPropagation()}>
+        <div className="modal-header">
+          <h2>Reentrada — {title}</h2>
+          <button className="modal-close" onClick={onClose}>✕</button>
+        </div>
+        <div className="modal-body">
+          <ResponsiveContainer width="100%" height={280}>
+            <PieChart>
+              <Pie data={data} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={100} label={({ name, percent }) => `${(percent * 100).toFixed(0)}%`}>
+                {data.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
+              </Pie>
+              <Tooltip formatter={(value, name) => [value, name]} />
+              <Legend />
+            </PieChart>
+          </ResponsiveContainer>
+          <table className="modal-table">
+            <thead><tr><th>Status</th><th className="text-right">Qtd</th></tr></thead>
+            <tbody>
+              {data.sort((a,b) => b.value - a.value).map((row, i) => (
+                <tr key={i}>
+                  <td><span className="status-dot" style={{ background: COLORS[i % COLORS.length] }} />{row.name}</td>
+                  <td className="text-right">{row.value}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function App() {
   const [leads, setLeads] = useState([])
   const [loading, setLoading] = useState(true)
   const [expandedBUs, setExpandedBUs] = useState({})
   const [expandedDTs, setExpandedDTs] = useState({})
+  const [modal, setModal] = useState(null) // { title, leads }
 
   useEffect(() => {
     supabase
       .from('leads_t1_raw')
-      .select('bu, dt, pmp, patrimonio, sf_exists, payload, created_at')
+      .select('bu, dt, pmp, patrimonio, sf_exists, sf_status, payload, created_at')
       .then(({ data, error }) => {
         if (error) console.error(error)
         else setLeads(data || [])
@@ -111,6 +157,13 @@ export default function App() {
   const hierarchy = buildHierarchy(leads)
   const toggleBU = bu => setExpandedBUs(p => ({ ...p, [bu]: !p[bu] }))
   const toggleDT = key => setExpandedDTs(p => ({ ...p, [key]: !p[key] }))
+
+  const openModal = (e, title, filterFn) => {
+    e.stopPropagation()
+    const reentradas = leads.filter(l => l.sf_exists === true && filterFn(l))
+    if (reentradas.length === 0) return
+    setModal({ title, leads: reentradas })
+  }
 
   const whaleLeads = leads
     .filter(l => { const r = parsePatrimonioRange(l.patrimonio); return r === '1MM-5MM' || r === '5MM+' })
@@ -154,7 +207,9 @@ export default function App() {
                     <tr className="row-bu-summary">
                       <td><em>Total</em></td>
                       <td className="text-right"><AnimatedCell value={buData.totais} /></td>
-                      <td className="text-right reentrada"><AnimatedCell value={-buData.reentrada} /></td>
+                      <td className="text-right reentrada clickable" onClick={e => openModal(e, bu, l => (l.bu||'').replace(/\+/g,' ') === bu)}>
+                        <AnimatedCell value={-buData.reentrada} />
+                      </td>
                       <td className="text-right"><AnimatedCell value={buData.totais - buData.reentrada} /></td>
                       {RANGES.map(r => <td key={r} className="text-right"><AnimatedCell value={buData.ranges[r] ?? 0} /></td>)}
                     </tr>
@@ -166,7 +221,9 @@ export default function App() {
                           <tr className="row-dt" onClick={() => toggleDT(dtKey)}>
                             <td className="indent-1">{expandedDTs[dtKey] ? '▾' : '▸'} {dt}</td>
                             <td className="text-right"><AnimatedCell value={dtData.totais} /></td>
-                            <td className="text-right reentrada"><AnimatedCell value={-dtData.reentrada} /></td>
+                            <td className="text-right reentrada clickable" onClick={e => openModal(e, `${bu} / ${dt}`, l => (l.bu||'').replace(/\+/g,' ') === bu && (l.dt||'').replace(/\+/g,' ') === dt)}>
+                              <AnimatedCell value={-dtData.reentrada} />
+                            </td>
                             <td className="text-right"><AnimatedCell value={dtData.totais - dtData.reentrada} /></td>
                             {RANGES.map(r => <td key={r} className="text-right"><AnimatedCell value={dtData.ranges[r] ?? 0} /></td>)}
                           </tr>
@@ -175,7 +232,9 @@ export default function App() {
                             <tr key={`${dtKey}|${pmp}`} className="row-pmp">
                               <td className="indent-2">{pmp}</td>
                               <td className="text-right"><AnimatedCell value={pmpData.totais} /></td>
-                              <td className="text-right reentrada"><AnimatedCell value={-pmpData.reentrada} /></td>
+                              <td className="text-right reentrada clickable" onClick={e => openModal(e, `${bu} / ${dt} / ${pmp}`, l => (l.bu||'').replace(/\+/g,' ') === bu && (l.dt||'').replace(/\+/g,' ') === dt && (l.pmp||'').replace(/\+/g,' ') === pmp)}>
+                                <AnimatedCell value={-pmpData.reentrada} />
+                              </td>
                               <td className="text-right"><AnimatedCell value={pmpData.totais - pmpData.reentrada} /></td>
                               {RANGES.map(r => <td key={r} className="text-right"><AnimatedCell value={pmpData.ranges[r] ?? 0} /></td>)}
                             </tr>
@@ -190,6 +249,8 @@ export default function App() {
           </div>
         )}
       </main>
+
+      {modal && <StatusModal title={modal.title} leads={modal.leads} onClose={() => setModal(null)} />}
 
       {whaleLeads.length > 0 && (
         <div className="news-ticker-wrapper">
