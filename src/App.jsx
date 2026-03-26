@@ -10,6 +10,15 @@ const supabase = createClient(
 const RANGES = ['100k-300k', '300k-500k', '500k-1MM', '1MM-5MM', '5MM+']
 const COLORS = ['#3ecf8e','#f24822','#f5a623','#7c5cfc','#17c3b2','#e94f37','#52b788','#4895ef']
 
+const BU_NORMALIZE = {
+  'Perini': 'Bruno Perini',
+}
+
+function normalizeBU(bu) {
+  const clean = (bu || 'Sem BU').replace(/\+/g, ' ').trim()
+  return BU_NORMALIZE[clean] || clean
+}
+
 function parsePatrimonioRange(text) {
   if (!text) return null
   const nums = []
@@ -44,10 +53,10 @@ function buildChartData(leads, groupBy, selectedBU) {
   const groupSet = new Set()
   filtered.forEach(l => {
     if (groupBy === 'dt') {
-      if (selectedBU && (l.bu || '').replace(/\+/g, ' ') !== selectedBU) return
+      if (selectedBU && normalizeBU(l.bu) !== selectedBU) return
       groupSet.add((l.dt || 'Sem Canal').replace(/\+/g, ' '))
     } else {
-      groupSet.add((l.bu || 'Sem BU').replace(/\+/g, ' '))
+      groupSet.add(normalizeBU(l.bu))
     }
   })
   const groups = [...groupSet]
@@ -57,10 +66,10 @@ function buildChartData(leads, groupBy, selectedBU) {
   filtered.forEach(l => {
     const day = l.created_at.slice(0, 10)
     if (!dataByDay[day]) return
-    if (groupBy === 'dt' && selectedBU && (l.bu || '').replace(/\+/g, ' ') !== selectedBU) return
+    if (groupBy === 'dt' && selectedBU && normalizeBU(l.bu) !== selectedBU) return
     const group = groupBy === 'dt'
       ? (l.dt || 'Sem Canal').replace(/\+/g, ' ')
-      : (l.bu || 'Sem BU').replace(/\+/g, ' ')
+      : normalizeBU(l.bu)
     dataByDay[day][group] = (dataByDay[day][group] || 0) + 1
   })
 
@@ -73,7 +82,7 @@ function build14DaySummary(leads) {
   const filtered = leads.filter(l => new Date(l.created_at) >= cutoff)
   const buMap = {}
   filtered.forEach(l => {
-    const bu = (l.bu || 'Sem BU').replace(/\+/g, ' ')
+    const bu = normalizeBU(l.bu)
     if (!buMap[bu]) buMap[bu] = { totais: 0, reentrada: 0, ranges: {} }
     buMap[bu].totais++
     if (l.sf_exists === true) buMap[bu].reentrada++
@@ -86,7 +95,7 @@ function build14DaySummary(leads) {
 function buildHierarchy(leads) {
   const buMap = {}
   for (const lead of leads) {
-    const bu = (lead.bu || 'Sem BU').replace(/\+/g, ' ')
+    const bu = normalizeBU(lead.bu)
     const dt = (lead.dt || 'Sem Canal').replace(/\+/g, ' ')
     const pmp = (lead.pmp || 'Sem PMP').replace(/\+/g, ' ')
     const isReentrada = lead.sf_exists === true
@@ -443,7 +452,7 @@ export default function App() {
                       <tr className="row-bu-summary">
                         <td><em>Total</em></td>
                         <td className="text-right"><AnimatedCell value={buData.totais} /></td>
-                        <td className="text-right reentrada clickable" onClick={e => openModal(e, bu, l => (l.bu || '').replace(/\+/g, ' ') === bu)}>
+                        <td className="text-right reentrada clickable" onClick={e => openModal(e, bu, l => normalizeBU(l.bu) === bu)}>
                           <AnimatedCell value={-buData.reentrada} />
                         </td>
                         <td className="text-right"><AnimatedCell value={buData.totais - buData.reentrada} /></td>
@@ -456,7 +465,7 @@ export default function App() {
                             <tr className="row-dt" onClick={() => toggleDT(dtKey)}>
                               <td className="indent-1">{expandedDTs[dtKey] ? '▾' : '▸'} {dt}</td>
                               <td className="text-right"><AnimatedCell value={dtData.totais} /></td>
-                              <td className="text-right reentrada clickable" onClick={e => openModal(e, `${bu} / ${dt}`, l => (l.bu || '').replace(/\+/g, ' ') === bu && (l.dt || '').replace(/\+/g, ' ') === dt)}>
+                              <td className="text-right reentrada clickable" onClick={e => openModal(e, `${bu} / ${dt}`, l => normalizeBU(l.bu) === bu && (l.dt || '').replace(/\+/g, ' ') === dt)}>
                                 <AnimatedCell value={-dtData.reentrada} />
                               </td>
                               <td className="text-right"><AnimatedCell value={dtData.totais - dtData.reentrada} /></td>
@@ -466,7 +475,7 @@ export default function App() {
                               <tr key={`${dtKey}|${pmp}`} className="row-pmp">
                                 <td className="indent-2">{pmp}</td>
                                 <td className="text-right"><AnimatedCell value={pmpData.totais} /></td>
-                                <td className="text-right reentrada clickable" onClick={e => openModal(e, `${bu} / ${dt} / ${pmp}`, l => (l.bu || '').replace(/\+/g, ' ') === bu && (l.dt || '').replace(/\+/g, ' ') === dt && (l.pmp || '').replace(/\+/g, ' ') === pmp)}>
+                                <td className="text-right reentrada clickable" onClick={e => openModal(e, `${bu} / ${dt} / ${pmp}`, l => normalizeBU(l.bu) === bu && (l.dt || '').replace(/\+/g, ' ') === dt && (l.pmp || '').replace(/\+/g, ' ') === pmp)}>
                                   <AnimatedCell value={-pmpData.reentrada} />
                                 </td>
                                 <td className="text-right"><AnimatedCell value={pmpData.totais - pmpData.reentrada} /></td>
