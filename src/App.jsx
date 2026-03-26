@@ -383,8 +383,19 @@ export default function App() {
         if (error) console.error(error)
         else {
           setLeads(data || [])
-          const hasWhale = (data || []).some(l => { const r = parsePatrimonioRange(l.patrimonio); return r === '1MM-5MM' || r === '5MM+' })
-          if (hasWhale) resetTickerTimer()
+          const whales = (data || []).filter(l => { const r = parsePatrimonioRange(l.patrimonio); return r === '1MM-5MM' || r === '5MM+' })
+          if (whales.length > 0) {
+            const lastWhale = whales.reduce((a, b) => new Date(a.created_at) > new Date(b.created_at) ? a : b)
+            const elapsed = Date.now() - new Date(lastWhale.created_at).getTime()
+            const remaining = 60 * 1000 - elapsed
+            if (remaining > 0) {
+              setShowTicker(true)
+              if (tickerTimerRef.current) clearTimeout(tickerTimerRef.current)
+              tickerTimerRef.current = setTimeout(() => setShowTicker(false), remaining)
+            } else {
+              setShowTicker(false)
+            }
+          }
         }
         setLoading(false)
       })
