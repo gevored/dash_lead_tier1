@@ -366,26 +366,32 @@ export default function App() {
   const [modal, setModal] = useState(null)
   const [chartGroupBy, setChartGroupBy] = useState('bu')
   const [selectedBU, setSelectedBU] = useState(null)
-  const [showTicker, setShowTicker] = useState(false)
+  const [showTicker, setShowTicker] = useState(true)
   const tickerTimerRef = useRef(null)
+
+  const resetTickerTimer = () => {
+    setShowTicker(true)
+    if (tickerTimerRef.current) clearTimeout(tickerTimerRef.current)
+    tickerTimerRef.current = setTimeout(() => setShowTicker(false), 5 * 60 * 1000)
+  }
 
   useEffect(() => {
     supabase.from('leads_t1_raw')
       .select('bu, dt, pmp, patrimonio, sf_exists, sf_status, payload, created_at')
       .then(({ data, error }) => {
         if (error) console.error(error)
-        else setLeads(data || [])
+        else {
+          setLeads(data || [])
+          const hasWhale = (data || []).some(l => { const r = parsePatrimonioRange(l.patrimonio); return r === '1MM-5MM' || r === '5MM+' })
+          if (hasWhale) resetTickerTimer()
+        }
         setLoading(false)
       })
     const channel = supabase.channel('leads_realtime')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'leads_t1_raw' }, ({ new: row }) => {
         setLeads(prev => [...prev, row])
         const range = parsePatrimonioRange(row.patrimonio)
-        if (range === '1MM-5MM' || range === '5MM+') {
-          setShowTicker(true)
-          if (tickerTimerRef.current) clearTimeout(tickerTimerRef.current)
-          tickerTimerRef.current = setTimeout(() => setShowTicker(false), 5 * 60 * 1000)
-        }
+        if (range === '1MM-5MM' || range === '5MM+') resetTickerTimer()
       })
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'leads_t1_raw' }, ({ new: row }) => setLeads(prev => prev.map(l => l.id === row.id ? { ...l, ...row } : l)))
       .subscribe()
