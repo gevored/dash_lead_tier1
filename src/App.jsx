@@ -517,11 +517,15 @@ export default function App() {
         <div className="news-ticker-wrapper">
           <div className="news-ticker-label">BREAKING NEWS</div>
           <div className="news-ticker-content">
-            {[...whaleLeads, ...whaleLeads].map((lead, idx) => (
-              <span key={idx} className="ticker-item">
-                🚨 Lead <strong>{lead.payload?.nome}</strong> com patrimônio <span>{lead.patrimonio}</span> via {lead.bu} / {lead.dt}
-              </span>
-            ))}
+            {[...whaleLeads, ...whaleLeads].map((lead, idx) => {
+              const diff = Math.floor((Date.now() - new Date(lead.created_at)) / 60000)
+              const tempo = diff < 1 ? 'agora mesmo' : diff < 60 ? `${diff} min atrás` : `${Math.floor(diff / 60)}h atrás`
+              return (
+                <span key={idx} className="ticker-item">
+                  🚨 Lead <strong>{lead.payload?.nome}</strong> com patrimônio <span>{lead.patrimonio}</span> via {normalizeBU(lead.bu)} / {(lead.dt||'').replace(/\+/g,' ')} — <em>{tempo}</em>
+                </span>
+              )
+            })}
           </div>
         </div>
       )}
