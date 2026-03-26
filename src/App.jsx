@@ -292,6 +292,63 @@ function StatusModal({ title, leads, onClose }) {
   )
 }
 
+function ExportButton() {
+  const [open, setOpen] = useState(false)
+  const [dateFrom, setDateFrom] = useState('')
+  const [dateTo, setDateTo] = useState('')
+  const [loading, setLoading] = useState(false)
+
+  const handleExport = async () => {
+    if (!dateFrom || !dateTo) return
+    setLoading(true)
+    const { data, error } = await supabase
+      .from('leads_t1_raw')
+      .select('*')
+      .gte('created_at', `${dateFrom}T00:00:00`)
+      .lte('created_at', `${dateTo}T23:59:59`)
+      .order('created_at', { ascending: false })
+
+    if (error || !data?.length) { setLoading(false); alert(error ? 'Erro ao buscar dados.' : 'Nenhum lead encontrado.'); return }
+
+    const cols = ['id','created_at','bu','dt','pmp','email','telefone','renda','patrimonio','sf_exists','sf_lead_id','sf_status','sf_owner_name','n8n_execution_id']
+    const rows = data.map(r => cols.map(c => {
+      const v = r[c] ?? ''
+      return typeof v === 'string' && v.includes(',') ? `"${v}"` : v
+    }).join(','))
+    const csv = [cols.join(','), ...rows].join('\n')
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `leads_t1_${dateFrom}_${dateTo}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+    setLoading(false)
+    setOpen(false)
+  }
+
+  return (
+    <div className="export-wrapper">
+      <button className="export-btn" onClick={() => setOpen(o => !o)}>↓ Exportar</button>
+      {open && (
+        <div className="export-popover">
+          <div className="export-row">
+            <label>De</label>
+            <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} />
+          </div>
+          <div className="export-row">
+            <label>Até</label>
+            <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} />
+          </div>
+          <button className="export-download-btn" onClick={handleExport} disabled={loading || !dateFrom || !dateTo}>
+            {loading ? 'Baixando...' : 'Baixar CSV'}
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function App() {
   const [leads, setLeads] = useState([])
   const [loading, setLoading] = useState(true)
@@ -335,7 +392,10 @@ export default function App() {
       <header className="dashboard-header">
         <div className="header-title-row">
           <h1>Dashboard Leads T1</h1>
-          <span className="live-indicator"><span className="pulse"></span> AO VIVO</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <ExportButton />
+            <span className="live-indicator"><span className="pulse"></span> AO VIVO</span>
+          </div>
         </div>
         <p>Visão em tempo real — BU → Canal → PMP</p>
       </header>

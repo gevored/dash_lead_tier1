@@ -340,6 +340,76 @@ main {
 }
 .clickable:hover { opacity: 0.8; }
 
+/* Export */
+.export-wrapper {
+  position: relative;
+}
+
+.export-btn {
+  padding: 0.4rem 0.9rem;
+  border-radius: 4px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-card);
+  color: var(--text-main);
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: border-color 0.2s;
+}
+.export-btn:hover { border-color: rgba(255,255,255,0.3); }
+
+.export-popover {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 1rem;
+  width: 220px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.export-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.export-row label {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  width: 30px;
+}
+
+.export-row input[type="date"] {
+  flex: 1;
+  background: var(--bg-main);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  color: var(--text-main);
+  padding: 0.3rem 0.5rem;
+  font-size: 0.8rem;
+}
+
+.export-download-btn {
+  background: var(--success);
+  color: #1c1c1c;
+  border: none;
+  border-radius: 4px;
+  padding: 0.45rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  width: 100%;
+  margin-top: 0.2rem;
+}
+.export-download-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
 /* Modal */
 .modal-overlay {
   position: fixed;
