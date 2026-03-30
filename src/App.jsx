@@ -329,28 +329,31 @@ function StatusModal({ title, leads, onClose }) {
             <div className="pie-wrapper"><PieChartSVG data={pieData} /></div>
           </div>
           <div className="modal-tables">
-            <table className="modal-table">
-              <thead><tr><th>Status</th><th className="text-right">Qtd</th></tr></thead>
-              <tbody>
-                {statusRows.map((row, i) => (
-                  <tr key={i}>
-                    <td><span className="status-dot" style={{ background: COLORS[i % COLORS.length] }} />{row.name}</td>
-                    <td className="text-right">{row.value}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            <table className="modal-table">
-              <thead><tr><th>Patrimônio</th><th className="text-right">Qtd</th></tr></thead>
-              <tbody>
-                {patrimonioRows.map((row, i) => (
-                  <tr key={i}>
-                    <td><span className="status-dot" style={{ background: COLORS[i % COLORS.length] }} />{row.label}</td>
-                    <td className="text-right">{row.value}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            {pieView === 'status' ? (
+              <table className="modal-table">
+                <thead><tr><th>Status</th><th className="text-right">Qtd</th></tr></thead>
+                <tbody>
+                  {statusRows.map((row, i) => (
+                    <tr key={i}>
+                      <td><span className="status-dot" style={{ background: COLORS[i % COLORS.length] }} />{row.name}</td>
+                      <td className="text-right">{row.value}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : (
+              <table className="modal-table">
+                <thead><tr><th>Patrimônio</th><th className="text-right">Qtd</th></tr></thead>
+                <tbody>
+                  {patrimonioRows.map((row, i) => (
+                    <tr key={i}>
+                      <td><span className="status-dot" style={{ background: COLORS[i % COLORS.length] }} />{row.label}</td>
+                      <td className="text-right">{row.value}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </div>
         </div>
       </div>
