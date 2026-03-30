@@ -742,7 +742,7 @@ main {
   display: inline-block;
   white-space: nowrap;
   padding-left: 100%;
-  animation: ticker 25s linear infinite;
+  animation: ticker 55s linear infinite;
   display: flex;
   align-items: center;
   height: 100%;
