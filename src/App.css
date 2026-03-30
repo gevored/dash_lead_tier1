@@ -18,9 +18,54 @@
   letter-spacing: -0.025em;
 }
 
-.dashboard-header p {
+.header-filter-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.date-filter {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 0.35rem 0.75rem;
+}
+
+.date-filter label {
+  font-size: 0.75rem;
   color: var(--text-muted);
-  font-size: 0.95rem;
+}
+
+.date-filter input[type="date"] {
+  background: transparent;
+  border: none;
+  color: var(--text-main);
+  font-size: 0.82rem;
+  font-family: inherit;
+  outline: none;
+  cursor: pointer;
+}
+
+.filter-reset-btn {
+  background: rgba(255,255,255,0.08);
+  border: 1px solid var(--border-color);
+  color: var(--text-main);
+  border-radius: 4px;
+  padding: 0.2rem 0.6rem;
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.filter-reset-btn:hover { background: rgba(255,255,255,0.14); }
+
+.filter-range-label {
+  font-size: 0.78rem;
+  color: var(--text-muted);
 }
 
 .dashboard-content {
@@ -107,6 +152,38 @@ main {
   height: 8px;
   border-radius: 50%;
   display: inline-block;
+}
+
+/* Big Numbers */
+.big-numbers {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+}
+
+.big-number-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 1rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.big-number-value {
+  font-size: 2rem;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+
+.big-number-label {
+  font-size: 0.72rem;
+  color: rgba(255,255,255,0.45);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
 }
 
 /* Summary Cards */

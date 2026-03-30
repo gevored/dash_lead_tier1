@@ -38,23 +38,20 @@ function parsePatrimonioRange(text) {
   return null
 }
 
-function getLast14Days() {
+function getDaysRange(from, to) {
   const days = []
-  for (let i = 13; i >= 0; i--) {
-    const d = new Date()
-    d.setDate(d.getDate() - i)
+  const d = new Date(from)
+  const end = new Date(to)
+  while (d <= end) {
     days.push(d.toISOString().slice(0, 10))
+    d.setDate(d.getDate() + 1)
   }
   return days
 }
 
 function buildChartData(leads, groupBy, selectedBU) {
-  const days = getLast14Days()
-  const cutoff = new Date(days[0])
-  const filtered = leads.filter(l => new Date(l.created_at) >= cutoff)
-
   const groupSet = new Set()
-  filtered.forEach(l => {
+  leads.forEach(l => {
     if (groupBy === 'dt') {
       if (selectedBU && normalizeBU(l.bu) !== selectedBU) return
       groupSet.add((l.dt || 'Sem Canal').replace(/\+/g, ' '))
@@ -64,9 +61,14 @@ function buildChartData(leads, groupBy, selectedBU) {
   })
   const groups = [...groupSet]
 
+  const daySet = new Set(leads.map(l => l.created_at.slice(0, 10)))
+  const days = leads.length > 0
+    ? getDaysRange([...daySet].sort()[0], [...daySet].sort().at(-1))
+    : []
+
   const dataByDay = {}
   days.forEach(day => { dataByDay[day] = {} })
-  filtered.forEach(l => {
+  leads.forEach(l => {
     const day = l.created_at.slice(0, 10)
     if (!dataByDay[day]) return
     if (groupBy === 'dt' && selectedBU && normalizeBU(l.bu) !== selectedBU) return
@@ -79,12 +81,9 @@ function buildChartData(leads, groupBy, selectedBU) {
   return { days, groups, dataByDay }
 }
 
-function build14DaySummary(leads) {
-  const days = getLast14Days()
-  const cutoff = new Date(days[0])
-  const filtered = leads.filter(l => new Date(l.created_at) >= cutoff)
+function buildBUSummary(leads) {
   const buMap = {}
-  filtered.forEach(l => {
+  leads.forEach(l => {
     const bu = normalizeBU(l.bu)
     if (!buMap[bu]) buMap[bu] = { totais: 0, reentrada: 0, ranges: {} }
     buMap[bu].totais++
@@ -199,8 +198,37 @@ function LineChart({ leads, groupBy, selectedBU }) {
   )
 }
 
+function BigNumbers({ leads }) {
+  const total = leads.length
+  const reentrada = leads.filter(l => l.sf_exists === true).length
+  const elegivel = total - reentrada
+  const acima1mm = leads.filter(l => { const r = parsePatrimonioRange(l.patrimonio); return r === '1MM-5MM' || r === '5MM+' }).length
+  const acima5mm = leads.filter(l => parsePatrimonioRange(l.patrimonio) === '5MM+').length
+  const semPesquisa = leads.filter(l => !parsePatrimonioRange(l.patrimonio)).length
+
+  const stats = [
+    { label: 'Total', value: total, color: '#fff' },
+    { label: 'Reentrada', value: reentrada, color: '#f24822' },
+    { label: 'Elegível', value: elegivel, color: '#3ecf8e' },
+    { label: 'Acima 1MM', value: acima1mm, color: '#7c5cfc' },
+    { label: 'Acima 5MM', value: acima5mm, color: '#17c3b2' },
+    { label: 'Sem Pesquisa', value: semPesquisa, color: '#f5a623' },
+  ]
+
+  return (
+    <div className="big-numbers">
+      {stats.map(s => (
+        <div key={s.label} className="big-number-card">
+          <span className="big-number-value" style={{ color: s.color }}>{s.value.toLocaleString('pt-BR')}</span>
+          <span className="big-number-label">{s.label}</span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 function SummaryCards({ leads, selectedBU, onSelectBU }) {
-  const summary = build14DaySummary(leads)
+  const summary = buildBUSummary(leads)
   return (
     <div className="summary-cards">
       {Object.entries(summary).map(([bu, data], i) => {
@@ -371,6 +399,16 @@ function ExportButton() {
   )
 }
 
+function defaultDateRange() {
+  const to = new Date()
+  const from = new Date()
+  from.setDate(from.getDate() - 13)
+  return {
+    from: from.toISOString().slice(0, 10),
+    to: to.toISOString().slice(0, 10),
+  }
+}
+
 export default function App() {
   const [leads, setLeads] = useState([])
   const [loading, setLoading] = useState(true)
@@ -382,6 +420,9 @@ export default function App() {
   const [showTicker, setShowTicker] = useState(true)
   const [, setTick] = useState(0)
   const tickerTimerRef = useRef(null)
+  const initialRange = defaultDateRange()
+  const [filterFrom, setFilterFrom] = useState(initialRange.from)
+  const [filterTo, setFilterTo] = useState(initialRange.to)
 
   const resetTickerTimer = () => {
     setShowTicker(true)
@@ -424,13 +465,18 @@ export default function App() {
     return () => { supabase.removeChannel(channel); if (tickerTimerRef.current) clearTimeout(tickerTimerRef.current); clearInterval(clockInterval) }
   }, [])
 
-  const hierarchy = buildHierarchy(leads)
+  const filteredLeads = leads.filter(l => {
+    const day = l.created_at?.slice(0, 10)
+    return day >= filterFrom && day <= filterTo
+  })
+
+  const hierarchy = buildHierarchy(filteredLeads)
   const toggleBU = bu => setExpandedBUs(p => ({ ...p, [bu]: !p[bu] }))
   const toggleDT = key => setExpandedDTs(p => ({ ...p, [key]: !p[key] }))
 
   const openModal = (e, title, filterFn) => {
     e.stopPropagation()
-    const reentradas = leads.filter(l => l.sf_exists === true && filterFn(l))
+    const reentradas = filteredLeads.filter(l => l.sf_exists === true && filterFn(l))
     if (reentradas.length === 0) return
     setModal({ title, leads: reentradas })
   }
@@ -438,6 +484,8 @@ export default function App() {
   const whaleLeads = leads.filter(l => { const r = parsePatrimonioRange(l.patrimonio); return r === '1MM-5MM' || r === '5MM+' }).slice(-10)
 
   const colSpan = 4 + RANGES.length
+
+  const rangeLabel = filterFrom === initialRange.from && filterTo === initialRange.to ? 'Últimos 14 dias' : `${filterFrom} → ${filterTo}`
 
   return (
     <div className="dashboard-container">
@@ -449,26 +497,38 @@ export default function App() {
             <span className="live-indicator"><span className="pulse"></span> AO VIVO</span>
           </div>
         </div>
-        <p>Visão em tempo real — BU → Canal → PMP</p>
+        <div className="header-filter-row">
+          <div className="date-filter">
+            <label>De</label>
+            <input type="date" value={filterFrom} onChange={e => setFilterFrom(e.target.value)} />
+            <label>Até</label>
+            <input type="date" value={filterTo} onChange={e => setFilterTo(e.target.value)} />
+            <button className="filter-reset-btn" onClick={() => { setFilterFrom(initialRange.from); setFilterTo(initialRange.to) }}>14 dias</button>
+          </div>
+          <span className="filter-range-label">{rangeLabel} — {filteredLeads.length} leads</span>
+        </div>
       </header>
 
       <main>
         {loading ? <p style={{ padding: '2rem' }}>Carregando dados...</p> : (
           <>
-            {/* Gráfico 14 dias */}
+            {/* Big numbers */}
+            <BigNumbers leads={filteredLeads} />
+
+            {/* Gráfico */}
             <div className="chart-section">
               <div className="chart-toolbar">
-                <span className="chart-title">Leads nos últimos 14 dias</span>
+                <span className="chart-title">Leads por período</span>
                 <div className="chart-toggle">
                   <button className={chartGroupBy === 'bu' ? 'active' : ''} onClick={() => { setChartGroupBy('bu'); setSelectedBU(null) }}>Por BU</button>
                   <button className={chartGroupBy === 'dt' ? 'active' : ''} onClick={() => setChartGroupBy('dt')}>Por Canal</button>
                 </div>
               </div>
-              <LineChart leads={leads} groupBy={chartGroupBy} selectedBU={selectedBU} />
+              <LineChart leads={filteredLeads} groupBy={chartGroupBy} selectedBU={selectedBU} />
             </div>
 
             {/* Cards de resumo */}
-            <SummaryCards leads={leads} selectedBU={selectedBU} onSelectBU={bu => { setSelectedBU(bu); setChartGroupBy(bu ? 'dt' : 'bu') }} />
+            <SummaryCards leads={filteredLeads} selectedBU={selectedBU} onSelectBU={bu => { setSelectedBU(bu); setChartGroupBy(bu ? 'dt' : 'bu') }} />
 
             {/* Tabela hierárquica */}
             <div className="bu-blocks">
