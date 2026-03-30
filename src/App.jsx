@@ -200,20 +200,16 @@ function LineChart({ leads, groupBy, selectedBU }) {
 
 function BigNumbers({ leads, onReentradaClick }) {
   const total = leads.length
+  const inelegiveis = leads.filter(l => !parsePatrimonioRange(l.patrimonio)).length
   const reentradaLeads = leads.filter(l => l.sf_exists === true)
   const reentrada = reentradaLeads.length
-  const elegivel = total - reentrada
-  const acima1mm = leads.filter(l => { const r = parsePatrimonioRange(l.patrimonio); return r === '1MM-5MM' || r === '5MM+' }).length
-  const acima5mm = leads.filter(l => parsePatrimonioRange(l.patrimonio) === '5MM+').length
-  const semPesquisa = leads.filter(l => !parsePatrimonioRange(l.patrimonio)).length
+  const leadsNet = leads.filter(l => parsePatrimonioRange(l.patrimonio) !== null && l.sf_exists !== true).length
 
   const stats = [
-    { label: 'Total', value: total, color: '#fff' },
+    { label: 'Total de Leads', value: total, color: '#fff' },
+    { label: 'Inelegíveis', value: inelegiveis, color: '#f5a623' },
     { label: 'Reentrada', value: reentrada, color: '#f24822', onClick: reentrada > 0 ? () => onReentradaClick(reentradaLeads) : null },
-    { label: 'Elegível', value: elegivel, color: '#3ecf8e' },
-    { label: 'Acima 1MM', value: acima1mm, color: '#7c5cfc' },
-    { label: 'Acima 5MM', value: acima5mm, color: '#17c3b2' },
-    { label: 'Sem Pesquisa', value: semPesquisa, color: '#f5a623' },
+    { label: 'Leads Net', value: leadsNet, color: '#3ecf8e' },
   ]
 
   return (
@@ -301,12 +297,22 @@ function PieChartSVG({ data }) {
 }
 
 function StatusModal({ title, leads, onClose }) {
-  const statusMap = {}
-  for (const lead of leads) {
-    const s = lead.sf_status || 'Sem status'
-    statusMap[s] = (statusMap[s] || 0) + 1
-  }
-  const data = Object.entries(statusMap).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value)
+  const [pieView, setPieView] = useState('status')
+
+  const statusRows = Object.entries(
+    leads.reduce((m, l) => { const s = l.sf_status || 'Sem status'; m[s] = (m[s] || 0) + 1; return m }, {})
+  ).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value)
+
+  const patrimonioRows = [
+    ...RANGES.map(r => ({ label: r, value: leads.filter(l => parsePatrimonioRange(l.patrimonio) === r).length })),
+    { label: 'Não elegível', value: leads.filter(l => l.patrimonio && l.patrimonio.trim() !== '' && !parsePatrimonioRange(l.patrimonio)).length },
+    { label: 'Sem pesquisa', value: leads.filter(l => !l.patrimonio || l.patrimonio.trim() === '').length },
+  ].filter(r => r.value > 0)
+
+  const pieData = pieView === 'status'
+    ? statusRows.map(r => ({ name: r.name, value: r.value }))
+    : patrimonioRows.map(r => ({ name: r.label, value: r.value }))
+
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-box" onClick={e => e.stopPropagation()}>
@@ -315,18 +321,37 @@ function StatusModal({ title, leads, onClose }) {
           <button className="modal-close" onClick={onClose}>✕</button>
         </div>
         <div className="modal-body">
-          <div className="pie-wrapper"><PieChartSVG data={data} /></div>
-          <table className="modal-table">
-            <thead><tr><th>Status</th><th className="text-right">Qtd</th></tr></thead>
-            <tbody>
-              {data.map((row, i) => (
-                <tr key={i}>
-                  <td><span className="status-dot" style={{ background: COLORS[i % COLORS.length] }} />{row.name}</td>
-                  <td className="text-right">{row.value}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <div className="pie-section">
+            <div className="chart-toggle" style={{ marginBottom: '0.75rem' }}>
+              <button className={pieView === 'status' ? 'active' : ''} onClick={() => setPieView('status')}>Status</button>
+              <button className={pieView === 'patrimonio' ? 'active' : ''} onClick={() => setPieView('patrimonio')}>Patrimônio</button>
+            </div>
+            <div className="pie-wrapper"><PieChartSVG data={pieData} /></div>
+          </div>
+          <div className="modal-tables">
+            <table className="modal-table">
+              <thead><tr><th>Status</th><th className="text-right">Qtd</th></tr></thead>
+              <tbody>
+                {statusRows.map((row, i) => (
+                  <tr key={i}>
+                    <td><span className="status-dot" style={{ background: COLORS[i % COLORS.length] }} />{row.name}</td>
+                    <td className="text-right">{row.value}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <table className="modal-table">
+              <thead><tr><th>Patrimônio</th><th className="text-right">Qtd</th></tr></thead>
+              <tbody>
+                {patrimonioRows.map((row, i) => (
+                  <tr key={i}>
+                    <td><span className="status-dot" style={{ background: COLORS[i % COLORS.length] }} />{row.label}</td>
+                    <td className="text-right">{row.value}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     </div>
