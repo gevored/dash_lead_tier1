@@ -198,9 +198,10 @@ function LineChart({ leads, groupBy, selectedBU }) {
   )
 }
 
-function BigNumbers({ leads }) {
+function BigNumbers({ leads, onReentradaClick }) {
   const total = leads.length
-  const reentrada = leads.filter(l => l.sf_exists === true).length
+  const reentradaLeads = leads.filter(l => l.sf_exists === true)
+  const reentrada = reentradaLeads.length
   const elegivel = total - reentrada
   const acima1mm = leads.filter(l => { const r = parsePatrimonioRange(l.patrimonio); return r === '1MM-5MM' || r === '5MM+' }).length
   const acima5mm = leads.filter(l => parsePatrimonioRange(l.patrimonio) === '5MM+').length
@@ -208,7 +209,7 @@ function BigNumbers({ leads }) {
 
   const stats = [
     { label: 'Total', value: total, color: '#fff' },
-    { label: 'Reentrada', value: reentrada, color: '#f24822' },
+    { label: 'Reentrada', value: reentrada, color: '#f24822', onClick: reentrada > 0 ? () => onReentradaClick(reentradaLeads) : null },
     { label: 'Elegível', value: elegivel, color: '#3ecf8e' },
     { label: 'Acima 1MM', value: acima1mm, color: '#7c5cfc' },
     { label: 'Acima 5MM', value: acima5mm, color: '#17c3b2' },
@@ -218,7 +219,7 @@ function BigNumbers({ leads }) {
   return (
     <div className="big-numbers">
       {stats.map(s => (
-        <div key={s.label} className="big-number-card">
+        <div key={s.label} className={`big-number-card${s.onClick ? ' clickable' : ''}`} onClick={s.onClick || undefined}>
           <span className="big-number-value" style={{ color: s.color }}>{s.value.toLocaleString('pt-BR')}</span>
           <span className="big-number-label">{s.label}</span>
         </div>
@@ -513,7 +514,7 @@ export default function App() {
         {loading ? <p style={{ padding: '2rem' }}>Carregando dados...</p> : (
           <>
             {/* Big numbers */}
-            <BigNumbers leads={filteredLeads} />
+            <BigNumbers leads={filteredLeads} onReentradaClick={reentradas => setModal({ title: 'Reentrada — Geral', leads: reentradas })} />
 
             {/* Gráfico */}
             <div className="chart-section">

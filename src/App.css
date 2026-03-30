@@ -170,6 +170,14 @@ main {
   display: flex;
   flex-direction: column;
   gap: 0.3rem;
+  transition: border-color 0.2s;
+}
+
+.big-number-card.clickable {
+  cursor: pointer;
+}
+.big-number-card.clickable:hover {
+  border-color: rgba(255,255,255,0.25);
 }
 
 .big-number-value {
