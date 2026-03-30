@@ -12,11 +12,13 @@ const COLORS = ['#3ecf8e','#f24822','#f5a623','#7c5cfc','#17c3b2','#e94f37','#52
 
 const BU_NORMALIZE = {
   'Perini': 'Bruno Perini',
+  'Bruno Perini ': 'Bruno Perini',
   'Thiago': 'Thiago Nigro',
+  'Thiago Nigro ': 'Thiago Nigro',
 }
 
 function normalizeBU(bu) {
-  const clean = (bu || 'Sem BU').replace(/\+/g, ' ').trim()
+  const clean = decodeURIComponent((bu || 'Sem BU').replace(/\+/g, ' ')).trim()
   return BU_NORMALIZE[clean] || clean
 }
 
