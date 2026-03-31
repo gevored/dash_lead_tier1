@@ -200,7 +200,7 @@ function LineChart({ leads, groupBy, selectedBU }) {
 
 function BigNumbers({ leads, onReentradaClick }) {
   const total = leads.length
-  const inelegiveis = leads.filter(l => !parsePatrimonioRange(l.patrimonio)).length
+  const inelegiveis = leads.filter(l => !parsePatrimonioRange(l.patrimonio) && l.sf_exists !== true).length
   const reentradaLeads = leads.filter(l => l.sf_exists === true)
   const reentrada = reentradaLeads.length
   const leadsNet = leads.filter(l => parsePatrimonioRange(l.patrimonio) !== null && l.sf_exists !== true).length
@@ -298,15 +298,18 @@ function PieChartSVG({ data }) {
 
 function StatusModal({ title, leads, onClose }) {
   const [pieView, setPieView] = useState('status')
+  const [onlyElegivel, setOnlyElegivel] = useState(false)
+
+  const visibleLeads = onlyElegivel ? leads.filter(l => parsePatrimonioRange(l.patrimonio) !== null) : leads
 
   const statusRows = Object.entries(
-    leads.reduce((m, l) => { const s = l.sf_status || 'Sem status'; m[s] = (m[s] || 0) + 1; return m }, {})
+    visibleLeads.reduce((m, l) => { const s = l.sf_status || 'Sem status'; m[s] = (m[s] || 0) + 1; return m }, {})
   ).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value)
 
   const patrimonioRows = [
-    ...RANGES.map(r => ({ label: r, value: leads.filter(l => parsePatrimonioRange(l.patrimonio) === r).length })),
-    { label: 'Não elegível', value: leads.filter(l => l.patrimonio && l.patrimonio.trim() !== '' && !parsePatrimonioRange(l.patrimonio)).length },
-    { label: 'Sem pesquisa', value: leads.filter(l => !l.patrimonio || l.patrimonio.trim() === '').length },
+    ...RANGES.map(r => ({ label: r, value: visibleLeads.filter(l => parsePatrimonioRange(l.patrimonio) === r).length })),
+    { label: 'Não elegível', value: visibleLeads.filter(l => l.patrimonio && l.patrimonio.trim() !== '' && !parsePatrimonioRange(l.patrimonio)).length },
+    { label: 'Sem pesquisa', value: visibleLeads.filter(l => !l.patrimonio || l.patrimonio.trim() === '').length },
   ].filter(r => r.value > 0)
 
   const pieData = pieView === 'status'
@@ -317,8 +320,17 @@ function StatusModal({ title, leads, onClose }) {
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-box" onClick={e => e.stopPropagation()}>
         <div className="modal-header">
-          <h2>Reentrada — {title}</h2>
-          <button className="modal-close" onClick={onClose}>✕</button>
+          <h2>Reentrada — {title} <span className="modal-count">({visibleLeads.length})</span></h2>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <button
+              className={`elegivel-toggle${onlyElegivel ? ' active' : ''}`}
+              onClick={() => setOnlyElegivel(v => !v)}
+              title={onlyElegivel ? 'Exibindo apenas elegíveis' : 'Exibindo todos'}
+            >
+              {onlyElegivel ? '◈ Elegíveis' : '◇ Todos'}
+            </button>
+            <button className="modal-close" onClick={onClose}>✕</button>
+          </div>
         </div>
         <div className="modal-body">
           <div className="pie-section">

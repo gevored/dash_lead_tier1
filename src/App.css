@@ -542,6 +542,30 @@ main {
 }
 .modal-close:hover { background: rgba(255,255,255,0.08); }
 
+.modal-count {
+  font-size: 0.85rem;
+  font-weight: 400;
+  color: var(--text-muted);
+}
+
+.elegivel-toggle {
+  background: rgba(255,255,255,0.06);
+  border: 1px solid var(--border-color);
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 0.75rem;
+  padding: 4px 10px;
+  border-radius: 4px;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.elegivel-toggle:hover { background: rgba(255,255,255,0.12); color: var(--text-main); }
+.elegivel-toggle.active {
+  background: rgba(62,207,142,0.12);
+  border-color: var(--success);
+  color: var(--success);
+}
+
 .modal-body {
   padding: 1.25rem;
   display: flex;
@@ -755,7 +779,7 @@ main {
   display: inline-block;
   white-space: nowrap;
   padding-left: 100%;
-  animation: ticker 55s linear infinite;
+  animation: ticker 110s linear infinite;
   display: flex;
   align-items: center;
   height: 100%;
