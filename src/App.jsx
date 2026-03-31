@@ -325,9 +325,11 @@ function StatusModal({ title, leads, onClose }) {
             <button
               className={`elegivel-toggle${onlyElegivel ? ' active' : ''}`}
               onClick={() => setOnlyElegivel(v => !v)}
-              title={onlyElegivel ? 'Exibindo apenas elegíveis' : 'Exibindo todos'}
+              title={onlyElegivel ? 'Exibindo apenas elegíveis — clique para ver todos' : 'Exibindo todos — clique para filtrar elegíveis'}
             >
-              {onlyElegivel ? '◈ Elegíveis' : '◇ Todos'}
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>
+              </svg>
             </button>
             <button className="modal-close" onClick={onClose}>✕</button>
           </div>
