@@ -474,8 +474,12 @@ export default function App() {
   }
 
   useEffect(() => {
+    const since90d = new Date()
+    since90d.setDate(since90d.getDate() - 90)
     supabase.from('leads_t1_raw')
       .select('bu, dt, pmp, patrimonio, sf_exists, sf_status, payload, created_at')
+      .gte('created_at', since90d.toISOString())
+      .order('created_at', { ascending: false })
       .then(({ data, error }) => {
         if (error) console.error(error)
         else {
