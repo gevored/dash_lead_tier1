@@ -385,7 +385,7 @@ function ExportButton() {
     if (!dateFrom || !dateTo) return
     setLoading(true)
     const { data, error } = await supabase
-      .from('leads_t1_raw')
+      .from('leads_t1_public')
       .select('created_at, bu, dt, pmp, n8n_execution_id, sf_exists, sf_status')
       .gte('created_at', `${dateFrom}T00:00:00`)
       .lte('created_at', `${dateTo}T23:59:59`)
@@ -468,7 +468,7 @@ export default function App() {
   useEffect(() => {
     const since90d = new Date()
     since90d.setDate(since90d.getDate() - 90)
-    supabase.from('leads_t1_raw')
+    supabase.from('leads_t1_public')
       .select('bu, dt, pmp, patrimonio, sf_exists, sf_status, payload, created_at')
       .gte('created_at', since90d.toISOString())
       .order('created_at', { ascending: false })
@@ -493,12 +493,12 @@ export default function App() {
         setLoading(false)
       })
     const channel = supabase.channel('leads_realtime')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'leads_t1_raw' }, ({ new: row }) => {
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'leads_t1_public' }, ({ new: row }) => {
         setLeads(prev => [...prev, row])
         const range = parsePatrimonioRange(row.patrimonio)
         if (range === '1MM-5MM' || range === '5MM+') resetTickerTimer()
       })
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'leads_t1_raw' }, ({ new: row }) => setLeads(prev => prev.map(l => l.id === row.id ? { ...l, ...row } : l)))
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'leads_t1_public' }, ({ new: row }) => setLeads(prev => prev.map(l => l.id === row.id ? { ...l, ...row } : l)))
       .subscribe()
     const clockInterval = setInterval(() => setTick(t => t + 1), 60000)
     return () => { supabase.removeChannel(channel); if (tickerTimerRef.current) clearTimeout(tickerTimerRef.current); clearInterval(clockInterval) }
